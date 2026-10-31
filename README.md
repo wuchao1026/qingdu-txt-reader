@@ -4,7 +4,7 @@
 
 ## 界面预览
 
-![轻读界面预览](assets/preview.png)
+<img src="assets/preview.png" width="514" alt="轻读界面预览">
 
 ## 功能特性
 
