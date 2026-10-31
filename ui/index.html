@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>轻读</title>
+<style>
+  /* ========== tokens ========== */
+  :root {
+    --bg: #FAF9F6;
+    --ink: #2B2926;
+    --muted: #6B6560;
+    --border: rgba(105, 100, 92, 0.42);
+    --btn-hover: rgba(105, 100, 92, 0.12);
+    --btn-active: rgba(105, 100, 92, 0.18);
+    --close-hover: #c42b1c;
+    --close-hover-ink: #ffffff;
+    --panel: #FAF9F6;
+    --panel-elev: rgba(105, 100, 92, 0.08);
+    --track: rgba(105, 100, 92, 0.18);
+    --accent: #2B2926;
+    --toast-bg: rgba(43, 41, 38, 0.92);
+    --toast-ink: #FAF9F6;
+    --shadow-line: rgba(105, 100, 92, 0.08);
+    --radius: 18px;
+    --topbar: 42px;
+  }
+  [data-theme="dark"] {
+    --bg: #1C1B19;
+    --ink: #F2EFE9;
+    --muted: #9A958C;
+    --border: rgba(180, 170, 155, 0.28);
+    --btn-hover: rgba(255, 255, 255, 0.08);
+    --btn-active: rgba(255, 255, 255, 0.14);
+    --close-hover: #c42b1c;
+    --close-hover-ink: #ffffff;
+    --panel: #1C1B19;
+    --panel-elev: rgba(255, 255, 255, 0.06);
+    --track: rgba(255, 255, 255, 0.14);
+    --accent: #F2EFE9;
+    --toast-bg: rgba(242, 239, 233, 0.94);
+    --toast-ink: #1C1B19;
+    --shadow-line: rgba(0, 0, 0, 0.25);
+  }
+
+  /* frosted glass: thin tint; real blur comes from Win11 DWM acrylic */
+  [data-theme="glass"] {
+    --bg: rgba(250, 249, 246, 0.22);
+    --ink: #2B2926;
+    --muted: #6B6560;
+    --border: rgba(105, 100, 92, 0.45);
+    --btn-hover: rgba(255, 255, 255, 0.18);
+    --btn-active: rgba(255, 255, 255, 0.28);
+    --close-hover: #c42b1c;
+    --close-hover-ink: #ffffff;
+    --panel: rgba(250, 249, 246, 0.55);
+    --panel-elev: rgba(255, 255, 255, 0.22);
+    --track: rgba(105, 100, 92, 0.28);
+    --accent: #2B2926;
+    --toast-bg: rgba(43, 41, 38, 0.88);
+    --toast-ink: #FAF9F6;
+    --shadow-line: rgba(105, 100, 92, 0.14);
+  }
+  html[data-theme="glass"],
+  html[data-theme="glass"] body {
+    background: transparent !important;
+  }
+  .window[data-theme="glass"] {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: var(--radius);
+    border: 0;
+    background: var(--bg);
+  }
+
+  /* ========== base ========== */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    /* default fully transparent — never paint an opaque min-size slab */
+    background: transparent;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  html[data-theme="paper"] body,
+  html[data-theme="dark"] body {
+    background: transparent;
+  }
+
+  .window {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ========== top bar ========== */
+  .topbar {
+    position: relative;
+    z-index: 20;
+    height: var(--topbar);
+    flex: 0 0 var(--topbar);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    cursor: default;
+    /* no -webkit-app-region: it swallows mouse events in WebView2 */
+  }
+
+  .topbar-title {
+    position: absolute;
+    left: 18px;
+    top: 0;
+    height: var(--topbar);
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    opacity: 0.85;
+    pointer-events: none;
+    max-width: 55%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .win-buttons {
+    display: flex;
+    height: var(--topbar);
+    align-items: center;
+    gap: 2px;
+    padding-right: 6px;
+  }
+
+  .win-btn {
+    width: 36px;
+    height: var(--topbar);
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    transition: background 80ms ease, color 80ms ease;
+  }
+  .win-btn:hover { background: var(--btn-hover); }
+  .win-btn:active { background: var(--btn-active); }
+  .win-btn svg {
+    width: 11px;
+    height: 11px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .win-btn.icon-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: 1.4;
+  }
+  .win-btn.flash {
+    background: var(--btn-active);
+  }
+
+  /* macOS traffic lights */
+  .traffic {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--topbar);
+    padding: 0 10px 0 6px;
+    margin-left: 4px;
+  }
+  .tl-hit {
+    width: 22px;
+    height: var(--topbar);
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tl-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+  }
+  .tl-dot svg {
+    width: 7px;
+    height: 7px;
+    stroke: rgba(0, 0, 0, 0.55);
+    fill: none;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    transition: opacity 100ms ease;
+    pointer-events: none;
+  }
+  .traffic:hover .tl-dot svg { opacity: 1; }
+  .tl-hit:active .tl-dot { filter: brightness(0.88); }
+
+  .tl-close .tl-dot { background: #FF5F57; }
+  .tl-close:hover .tl-dot { background: #FF3B30; }
+  .tl-min .tl-dot { background: #FEBC2E; }
+  .tl-min:hover .tl-dot { background: #F5A623; }
+  .tl-max .tl-dot { background: #28C840; }
+  .tl-max:hover .tl-dot { background: #1DB333; }
+
+  /* dark theme: slightly softer borders inside dots */
+  [data-theme="dark"] .tl-dot {
+    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.28);
+  }
+
+  /* ========== body / content ========== */
+  .body {
+    position: relative;
+    flex: 1 1 auto;
+    overflow: auto;
+    overflow-x: hidden;
+    /* hide scrollbars — keep minimal */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .body::-webkit-scrollbar { width: 0; height: 0; }
+
+  .inner {
+    min-height: 0;
+    padding: 18px 28px 30px 28px;
+    cursor: text;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .text {
+    font-size: 18px;
+    line-height: 1.92;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-family: "QingDuRead", "Songti SC", "SimSun", serif;
+  }
+  /* each line becomes a paragraph when 首行缩进 is on */
+  .text.indent .para {
+    text-indent: 2em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-height: 1.92em;
+  }
+  .text.indent {
+    white-space: normal;
+  }
+
+  /* empty state */
+  .empty {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 28px 42px;
+    text-align: center;
+    user-select: none;
+    cursor: default;
+  }
+  .empty.show { display: flex; }
+  .inner.has-text .empty { display: none; }
+  .inner.no-text .text { display: none; }
+
+  .empty-logo {
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    color: var(--ink);
+    margin-bottom: 12px;
+    padding-left: 0.22em;
+    font-family: "QingDuRead", "Songti SC", "SimSun", serif;
+  }
+  .empty-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 22px;
+    max-width: 280px;
+  }
+  .empty-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    padding: 8px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .empty-btn:hover {
+    background: var(--btn-hover);
+    border-color: var(--muted);
+  }
+
+  /* ========== settings ========== */
+  .settings {
+    display: none;
+    padding: 8px 28px 28px;
+    user-select: none;
+  }
+  .settings.show { display: block; }
+
+  .set-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 36px;
+    margin-bottom: 4px;
+  }
+  .set-title {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .set-close {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 80ms ease, color 80ms ease;
+  }
+  .set-close:hover {
+    background: var(--btn-hover);
+    color: var(--ink);
+  }
+  .set-close:active { background: var(--btn-active); }
+  .set-close svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .set-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--shadow-line);
+  }
+  .set-row:last-of-type { border-bottom: 0; }
+  .set-label {
+    flex: 0 0 72px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .set-body {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .step-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 100ms ease;
+  }
+  .step-btn:hover { background: var(--btn-hover); }
+  .step-val {
+    min-width: 28px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1 1 auto;
+    height: 22px;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    min-width: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--track);
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5.5px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 0;
+    box-shadow: 0 0 0 3px var(--bg);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px;
+    background: var(--track);
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 0;
+  }
+
+  select {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 30px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+  select:focus { border-color: var(--muted); }
+  option {
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    padding: 2px;
+    gap: 2px;
+  }
+  .seg-btn {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .seg-btn.active {
+    background: var(--ink);
+    color: var(--bg);
+  }
+
+  .preview {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--panel-elev);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.8;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: "QingDuRead", "Songti SC", "SimSun", serif;
+  }
+
+  /* ========== toast ========== */
+  .toast {
+    position: absolute;
+    left: 50%;
+    top: 54px;
+    transform: translateX(-50%) translateY(-6px);
+    background: var(--toast-bg);
+    color: var(--toast-ink);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    padding: 8px 16px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+    transition: opacity 160ms ease, transform 160ms ease;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ========== resize edge ========== */
+  .resize-x {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 10px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 40;
+    touch-action: none;
+  }
+
+  /* blank drag zones inside content */
+  .inner.drag-zone { cursor: default; }
+</style>
+</head>
+<body>
+  <div class="window" id="root" data-theme="paper">
+    <header class="topbar" id="topbar">
+      <div class="topbar-title" id="topbar-title">轻读</div>
+      <div class="win-buttons">
+        <button class="win-btn icon-btn" id="btn-copy" title="复制全文 (Ctrl+C)" aria-label="复制全文">
+          <svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="9" rx="1.2"/><path d="M10.5 5.5V3.2A1.2 1.2 0 0 0 9.3 2H3.2A1.2 1.2 0 0 0 2 3.2v6.1A1.2 1.2 0 0 0 3.2 10.5h2.3"/></svg>
+        </button>
+        <button class="win-btn icon-btn" id="btn-settings" title="设置 (Ctrl+,)" aria-label="设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+        <div class="traffic" id="traffic">
+          <button class="tl-hit tl-max" id="btn-max" title="最大化" aria-label="最大化">
+            <span class="tl-dot">
+              <svg viewBox="0 0 8 8" id="icon-max"><path d="M2.8 2.8h2.8v2.8H2.8z"/></svg>
+            </span>
+          </button>
+          <button class="tl-hit tl-min" id="btn-min" title="最小化" aria-label="最小化">
+            <span class="tl-dot">
+              <svg viewBox="0 0 8 8"><path d="M2 4h4"/></svg>
+            </span>
+          </button>
+          <button class="tl-hit tl-close" id="btn-close" title="关闭" aria-label="关闭">
+            <span class="tl-dot">
+              <svg viewBox="0 0 8 8"><path d="M2 2l4 4M6 2L2 6"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="body" id="body">
+      <div class="inner no-text" id="inner">
+        <div class="text" id="text"></div>
+        <div class="empty show" id="empty">
+          <div class="empty-logo">轻读</div>
+          <div class="empty-desc">把 txt 拖进来，或双击任意文本文件。<br>字多则高，字少则矮。</div>
+          <button class="empty-btn" id="btn-open">打开文件</button>
+        </div>
+      </div>
+
+      <section class="settings" id="settings">
+        <div class="set-head">
+          <div class="set-title">设置</div>
+          <button class="set-close" id="btn-set-close" title="关闭设置 (Esc)" aria-label="关闭设置">
+            <svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg>
+          </button>
+        </div>
+        <div class="set-row">
+          <div class="set-label">字号</div>
+          <div class="set-body">
+            <div class="stepper">
+              <button class="step-btn" id="fs-minus">A−</button>
+              <span class="step-val" id="fs-val">18</span>
+              <button class="step-btn" id="fs-plus">A+</button>
+            </div>
+            <input type="range" id="fs-range" min="12" max="36" step="1" value="18">
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">窗口宽度</div>
+          <div class="set-body">
+            <input type="range" id="w-range" min="360" max="920" step="2" value="520">
+            <span class="step-val" id="w-val">520</span>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">中文字体</div>
+          <div class="set-body">
+            <select id="zh-font">
+              <option>自动</option>
+              <option>思源宋体</option>
+              <option>思源黑体</option>
+              <option>微软雅黑</option>
+              <option>宋体</option>
+              <option>黑体</option>
+              <option>楷体</option>
+              <option>仿宋</option>
+              <option>等线</option>
+              <option>华文细黑</option>
+              <option>华文宋体</option>
+            </select>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">英文字体</div>
+          <div class="set-body">
+            <select id="en-font">
+              <option>自动</option>
+              <option>Georgia</option>
+              <option>Times New Roman</option>
+              <option>Segoe UI</option>
+              <option>Calibri</option>
+              <option>Cambria</option>
+              <option>Consolas</option>
+              <option>Palatino Linotype</option>
+              <option>Book Antiqua</option>
+            </select>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">背景</div>
+          <div class="set-body">
+            <div class="seg" id="bg-seg">
+              <button class="seg-btn active" data-bg="paper">纸色</button>
+              <button class="seg-btn" data-bg="dark">深色</button>
+            </div>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">首行缩进</div>
+          <div class="set-body">
+            <div class="seg" id="indent-seg">
+              <button class="seg-btn active" data-indent="1">两字符</button>
+              <button class="seg-btn" data-indent="0">关</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview" id="preview">The quick brown fox 敏捷的棕色狐狸 jumps over 0123456789</div>
+      </section>
+    </main>
+
+    <div class="resize-x" id="resize-x"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ----- elements -----
+  const $ = (id) => document.getElementById(id);
+  const root = $("root");
+  const body = $("body");
+  const inner = $("inner");
+  const textEl = $("text");
+  const emptyEl = $("empty");
+  const settingsEl = $("settings");
+  const toastEl = $("toast");
+  const topbarTitle = $("topbar-title");
+
+  // ----- state -----
+  const state = {
+    fontSize: 18,
+    prefWidth: 520,
+    zhFont: "自动",
+    enFont: "自动",
+    bgMode: "paper",
+    indentFirstLine: true,
+    text: "",
+    fileName: "",
+    settingsOpen: false,
+    maximized: false,
+    lastHeight: 0,
+    lastWidth: 0,
+  };
+
+  const TOPBAR = 42;
+  const MIN_W = 360;
+  const MAX_W = 920;
+
+  // ----- toast -----
+  let toastTimer = 0;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  }
+
+  // ----- fonts (unicode-range isolation) -----
+  const ZH_FONTS = {
+    "自动": null,
+    "思源宋体": ['"Source Han Serif SC"', '"Noto Serif CJK SC"', '"思源宋体"'],
+    "思源黑体": ['"Source Han Sans SC"', '"Noto Sans CJK SC"', '"思源黑体"'],
+    "微软雅黑": ['"Microsoft YaHei"', '"微软雅黑"'],
+    "宋体": ['"SimSun"', '"宋体"'],
+    "黑体": ['"SimHei"', '"黑体"'],
+    "楷体": ['"KaiTi"', '"楷体"', '"STKaiti"'],
+    "仿宋": ['"FangSong"', '"仿宋"', '"STFangsong"'],
+    "等线": ['"DengXian"', '"等线"'],
+    "华文细黑": ['"STXihei"', '"华文细黑"'],
+    "华文宋体": ['"STSong"', '"华文宋体"'],
+  };
+  const EN_FONTS = {
+    "自动": null,
+    "Georgia": ['"Georgia"'],
+    "Times New Roman": ['"Times New Roman"'],
+    "Segoe UI": ['"Segoe UI"'],
+    "Calibri": ['"Calibri"'],
+    "Cambria": ['"Cambria"'],
+    "Consolas": ['"Consolas"'],
+    "Palatino Linotype": ['"Palatino Linotype"'],
+    "Book Antiqua": ['"Book Antiqua"'],
+  };
+
+  const ZH_RANGE = [
+    "U+2E80-2EFF",
+    "U+3000-303F",
+    "U+3040-30FF",
+    "U+3100-312F",
+    "U+31C0-31EF",
+    "U+3200-32FF",
+    "U+3300-33FF",
+    "U+3400-4DBF",
+    "U+4E00-9FFF",
+    "U+F900-FAFF",
+    "U+FE30-FE4F",
+    "U+FF00-FFEF",
+  ].join(", ");
+  const EN_RANGE = [
+    "U+0020-024F",
+    "U+02B0-02FF",
+    "U+0300-036F",
+    "U+0370-03FF",
+    "U+2000-206F",
+    "U+2070-209F",
+    "U+20A0-20BF",
+    "U+2100-214F",
+    "U+2150-218F",
+    "U+2190-21FF",
+    "U+2200-22FF",
+    "U+2500-257F",
+    "U+25A0-25FF",
+    "U+FB00-FB4F",
+    "U+FE00-FE0F",
+  ].join(", ");
+
+  function localSrc(names) {
+    if (!names || !names.length) return null;
+    return names.map((n) => `local(${n})`).join(", ");
+  }
+
+  function applyFonts() {
+    let zhList = ZH_FONTS[state.zhFont] || ZH_FONTS["自动"];
+    let enList = EN_FONTS[state.enFont] || EN_FONTS["自动"];
+    // auto: pick a reasonable CJK / Latin stack via local()
+    const zhSrc = localSrc(zhList) ||
+      localSrc(['"Source Han Serif SC"', '"Noto Serif CJK SC"', '"Microsoft YaHei"', '"SimSun"', '"宋体"']);
+    const enSrc = localSrc(enList) ||
+      localSrc(['"Georgia"', '"Cambria"', '"Times New Roman"', '"Segoe UI"']);
+
+    let styleEl = document.getElementById("font-split");
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "font-split";
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+@font-face {
+  font-family: "QingDuRead";
+  src: ${zhSrc};
+  unicode-range: ${ZH_RANGE};
+  font-display: swap;
+}
+@font-face {
+  font-family: "QingDuRead";
+  src: ${enSrc};
+  unicode-range: ${EN_RANGE};
+  font-display: swap;
+}
+`;
+  }
+
+  // ----- theme -----
+  function applyTheme() {
+    root.setAttribute("data-theme", state.bgMode);
+    // html/body paint the stroke — they must see the same tokens
+    document.documentElement.setAttribute("data-theme", state.bgMode);
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.set_bg_mode) {
+      window.pywebview.api.set_bg_mode(state.bgMode);
+    }
+  }
+
+  // ----- typography -----
+  function applyTypography() {
+    const px = state.fontSize + "px";
+    textEl.style.fontSize = px;
+    textEl.style.lineHeight = "1.92";
+    textEl.style.letterSpacing = "0.02em";
+  }
+
+  // ----- measure & resize -----
+  function measureContentHeight() {
+    // natural height of visible content
+    let h;
+    if (state.settingsOpen) {
+      h = settingsEl.scrollHeight || settingsEl.offsetHeight;
+    } else {
+      h = inner.scrollHeight;
+    }
+    return TOPBAR + h;
+  }
+
+  function clampWidth(w) {
+    return Math.max(MIN_W, Math.min(MAX_W, Math.round(w)));
+  }
+
+  let resizePending = 0;
+  function scheduleMeasure(delay) {
+    if (resizePending) clearTimeout(resizePending);
+    resizePending = setTimeout(() => {
+      resizePending = 0;
+      doMeasure();
+    }, delay == null ? 0 : delay);
+  }
+
+  function doMeasure() {
+    if (state.maximized) return;
+    const w = clampWidth(state.prefWidth);
+    let h = measureContentHeight();
+    // hard cap ~90% screen height
+    const screenH = (window.screen && (window.screen.availHeight || window.screen.height)) || 900;
+    const maxH = Math.floor(screenH * 0.9);
+    if (h > maxH) h = maxH;
+    if (h < 160) h = 160;
+
+    const sameH = Math.abs(h - state.lastHeight) < 1;
+    const sameW = Math.abs(w - state.lastWidth) < 1;
+    if (sameH && sameW) return;
+    state.lastHeight = h;
+    state.lastWidth = w;
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.resize_window) {
+      window.pywebview.api.resize_window(w, h);
+    }
+  }
+
+  // ----- content -----
+  function renderText(text, fileName, opts) {
+    opts = opts || {};
+    const t = text == null ? "" : String(text);
+    // pull-side empty must not wipe content already pushed
+    if (!opts.force && !t && state.text) return;
+    state.text = t;
+    state.fileName = fileName || "";
+    applyTextBody();
+    if (state.text.trim().length > 0) {
+      inner.classList.remove("no-text");
+      inner.classList.add("has-text");
+      emptyEl.classList.remove("show");
+    } else {
+      inner.classList.add("no-text");
+      inner.classList.remove("has-text");
+      emptyEl.classList.add("show");
+    }
+    topbarTitle.textContent = state.fileName || "轻读";
+    document.title = state.fileName || "轻读";
+    scheduleMeasure(0);
+  }
+
+  // XSS-safe body: textContent only. Optional per-line indent (2em).
+  function applyTextBody() {
+    const t = state.text;
+    if (!state.indentFirstLine) {
+      textEl.className = "text";
+      textEl.textContent = t;
+      return;
+    }
+    textEl.className = "text indent";
+    textEl.textContent = "";
+    const lines = t.split(/\r\n|\r|\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const div = document.createElement("div");
+      div.className = "para";
+      div.textContent = lines[i];
+      if (lines[i] === "") {
+        // keep blank-line height
+        div.appendChild(document.createElement("br"));
+      }
+      textEl.appendChild(div);
+    }
+  }
+
+  async function copyAll() {
+    if (!state.text || !state.text.trim()) {
+      toast("没有可复制的内容");
+      return;
+    }
+    // if user has a selection, prefer native copy of selection via execCommand path
+    const sel = window.getSelection && String(window.getSelection());
+    if (sel && sel.trim() && document.activeElement && document.activeElement !== document.body) {
+      // leave to system Ctrl+C; this is for the button = always full text
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(state.text);
+      } else {
+        fallbackCopy(state.text);
+      }
+      flashCopyBtn();
+      toast("已复制全文");
+    } catch (e) {
+      fallbackCopy(state.text);
+      flashCopyBtn();
+      toast("已复制全文");
+    }
+  }
+
+  function fallbackCopy(s) {
+    const ta = document.createElement("textarea");
+    ta.value = s;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function flashCopyBtn() {
+    const b = $("btn-copy");
+    b.classList.add("flash");
+    setTimeout(() => b.classList.remove("flash"), 180);
+  }
+
+  // ----- settings -----
+  function openSettings(open) {
+    state.settingsOpen = open;
+    settingsEl.classList.toggle("show", open);
+    inner.style.display = open ? "none" : "";
+    scheduleMeasure(20);
+  }
+
+  function bindSettings() {
+    const fsRange = $("fs-range");
+    const fsVal = $("fs-val");
+    const wRange = $("w-range");
+    const wVal = $("w-val");
+
+    function setFontSize(n, fromSlider) {
+      n = Math.max(12, Math.min(36, Math.round(n)));
+      state.fontSize = n;
+      fsVal.textContent = String(n);
+      if (!fromSlider) fsRange.value = String(n);
+      applyTypography();
+      // CSS first; window height debounced 160ms
+      scheduleMeasure(160);
+      persist();
+    }
+
+    fsRange.addEventListener("input", () => setFontSize(+fsRange.value, true));
+    $("fs-minus").addEventListener("click", () => setFontSize(state.fontSize - 1));
+    $("fs-plus").addEventListener("click", () => setFontSize(state.fontSize + 1));
+
+    function setWidth(n, fromSlider) {
+      n = clampWidth(n);
+      state.prefWidth = n;
+      wVal.textContent = String(n);
+      if (!fromSlider) wRange.value = String(n);
+      // width immediate; height remeasure after 30ms
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.resize_window) {
+        const h = state.lastHeight || measureContentHeight();
+        state.lastWidth = n;
+        window.pywebview.api.resize_window(n, h);
+      }
+      scheduleMeasure(30);
+      persist();
+    }
+    wRange.addEventListener("input", () => setWidth(+wRange.value, true));
+
+    $("zh-font").addEventListener("change", (e) => {
+      state.zhFont = e.target.value;
+      applyFonts();
+      scheduleMeasure(40);
+      persist();
+    });
+    $("en-font").addEventListener("change", (e) => {
+      state.enFont = e.target.value;
+      applyFonts();
+      scheduleMeasure(40);
+      persist();
+    });
+
+    $("bg-seg").addEventListener("click", (e) => {
+      const btn = e.target.closest(".seg-btn");
+      if (!btn) return;
+      state.bgMode = btn.getAttribute("data-bg") || "paper";
+      $("bg-seg").querySelectorAll(".seg-btn").forEach((b) => {
+        b.classList.toggle("active", b === btn);
+      });
+      applyTheme();
+      persist();
+    });
+
+    $("indent-seg").addEventListener("click", (e) => {
+      const btn = e.target.closest(".seg-btn");
+      if (!btn) return;
+      state.indentFirstLine = btn.getAttribute("data-indent") === "1";
+      $("indent-seg").querySelectorAll(".seg-btn").forEach((b) => {
+        b.classList.toggle("active", b === btn);
+      });
+      applyTextBody();
+      scheduleMeasure(40);
+      persist();
+    });
+  }
+
+  function syncSettingsUI() {
+    $("fs-range").value = String(state.fontSize);
+    $("fs-val").textContent = String(state.fontSize);
+    $("w-range").value = String(state.prefWidth);
+    $("w-val").textContent = String(state.prefWidth);
+    $("zh-font").value = state.zhFont;
+    $("en-font").value = state.enFont;
+    $("bg-seg").querySelectorAll(".seg-btn").forEach((b) => {
+      b.classList.toggle("active", b.getAttribute("data-bg") === state.bgMode);
+    });
+    $("indent-seg").querySelectorAll(".seg-btn").forEach((b) => {
+      const on = b.getAttribute("data-indent") === "1";
+      b.classList.toggle("active", on === !!state.indentFirstLine);
+    });
+  }
+
+  let persistTimer = 0;
+  function persist() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.save_prefs) {
+        window.pywebview.api.save_prefs({
+          fontSize: state.fontSize,
+          prefWidth: state.prefWidth,
+          zhFont: state.zhFont,
+          enFont: state.enFont,
+          bgMode: state.bgMode,
+          indentFirstLine: state.indentFirstLine,
+        });
+      }
+    }, 120);
+  }
+
+  // ----- window controls -----
+  function bindChrome() {
+    const stop = (e) => {
+      e.stopPropagation();
+    };
+    // only swallow pointer/drag events — never `click`, or buttons die
+    ["pointerdown", "mousedown", "mouseup"].forEach((t) => {
+      document.querySelector(".win-buttons").addEventListener(t, stop, true);
+    });
+    $("resize-x").addEventListener("pointerdown", stop, true);
+    $("resize-x").addEventListener("mousedown", stop, true);
+
+    $("btn-min").addEventListener("click", () => {
+      window.pywebview && window.pywebview.api.minimize && window.pywebview.api.minimize();
+    });
+    $("btn-max").addEventListener("click", async () => {
+      if (!window.pywebview || !window.pywebview.api) return;
+      const maxed = await window.pywebview.api.toggle_maximize();
+      state.maximized = !!maxed;
+      updateMaxIcon();
+      if (!state.maximized) scheduleMeasure(30);
+    });
+    $("btn-close").addEventListener("click", () => {
+      window.pywebview && window.pywebview.api.close && window.pywebview.api.close();
+    });
+    $("btn-copy").addEventListener("click", copyAll);
+    $("btn-settings").addEventListener("click", () => openSettings(!state.settingsOpen));
+    $("btn-set-close").addEventListener("click", () => openSettings(false));
+    $("btn-open").addEventListener("click", openFileDialog);
+  }
+
+  function updateMaxIcon() {
+    const icon = $("icon-max");
+    if (state.maximized) {
+      // restore: two overlapping squares
+      icon.innerHTML = '<path d="M2.2 3.2h2.4v2.4H2.2z"/><path d="M3.4 2.2H5.8v2.4"/>';
+      $("btn-max").title = "还原";
+    } else {
+      icon.innerHTML = '<path d="M2.8 2.8h2.8v2.8H2.8z"/>';
+      $("btn-max").title = "最大化";
+    }
+  }
+
+  function openFileDialog() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.open_file_dialog) {
+      window.pywebview.api.open_file_dialog().then((res) => {
+        if (res && res.ok) {
+          renderText(res.text, res.name);
+        } else if (res && res.error) {
+          toast(res.error);
+        }
+      }).catch(() => {});
+    }
+  }
+
+  // ----- drag window (JS move — WebView2 blocks CSS app-region on frameless) -----
+  function bindDrag() {
+    const topbar = $("topbar");
+    let dragging = false;
+    let startSX = 0;
+    let startSY = 0;
+    let originX = 0;
+    let originY = 0;
+    let nextX = 0;
+    let nextY = 0;
+    let raf = 0;
+    let inFlight = false;
+
+    async function onDown(e) {
+      if (e.button !== 0) return;
+      const t = e.target;
+      if (t.closest && (t.closest(".win-buttons") || t.closest(".resize-x"))) return;
+      if (state.maximized) return;
+      e.preventDefault();
+      dragging = true;
+      startSX = e.screenX;
+      startSY = e.screenY;
+      try {
+        const pos = await window.pywebview.api.get_window_pos();
+        originX = pos.x;
+        originY = pos.y;
+      } catch (err) {
+        dragging = false;
+      }
+    }
+
+    function flushMove() {
+      if (inFlight) return;
+      if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.move_window) return;
+      inFlight = true;
+      const x = nextX;
+      const y = nextY;
+      Promise.resolve(window.pywebview.api.move_window(x, y)).finally(() => {
+        inFlight = false;
+        if (dragging && (x !== nextX || y !== nextY)) flushMove();
+      });
+    }
+
+    function onMove(e) {
+      if (!dragging) return;
+      nextX = originX + (e.screenX - startSX);
+      nextY = originY + (e.screenY - startSY);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        flushMove();
+      });
+    }
+
+    function onUp() {
+      dragging = false;
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    }
+
+    topbar.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    // blank padding of the text area can also drag (not text selection)
+    inner.addEventListener("mousedown", (e) => {
+      if (state.settingsOpen) return;
+      if (e.button !== 0) return;
+      const sel = window.getSelection();
+      if (sel && String(sel).length > 0) return;
+      const t = e.target;
+      if (t === textEl || (t.closest && t.closest(".text"))) return;
+      onDown(e);
+    });
+
+    // double-click topbar → maximize/restore
+    topbar.addEventListener("dblclick", (e) => {
+      const t = e.target;
+      if (t.closest && (t.closest(".win-buttons") || t.closest(".resize-x"))) return;
+      $("btn-max").click();
+    });
+  }
+
+  // ----- right-edge resize -----
+  // Use pointer capture so we keep receiving moves after the cursor
+  // leaves the window (plain window.mousemove dies as soon as you drag out).
+  function bindResize() {
+    const edge = $("resize-x");
+    let startX = 0;
+    let startW = 0;
+    let active = false;
+    let pid = null;
+
+    function applyWidth(clientX) {
+      const dx = clientX - startX;
+      let w = clampWidth(startW + dx);
+      if (w === state.prefWidth) return;
+      state.prefWidth = w;
+      $("w-range").value = String(w);
+      $("w-val").textContent = String(w);
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.resize_window) {
+        const h = state.lastHeight || measureContentHeight();
+        state.lastWidth = w;
+        window.pywebview.api.resize_window(w, h);
+      }
+      scheduleMeasure(30);
+    }
+
+    edge.addEventListener("pointerdown", (e) => {
+      if (state.maximized) return;
+      if (e.button !== 0) return;
+      active = true;
+      pid = e.pointerId;
+      startX = e.clientX;
+      startW = state.prefWidth;
+      try {
+        edge.setPointerCapture(e.pointerId);
+      } catch (_) {}
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    edge.addEventListener("pointermove", (e) => {
+      if (!active || e.pointerId !== pid) return;
+      e.preventDefault();
+      applyWidth(e.clientX);
+    });
+
+    function endResize(e) {
+      if (!active) return;
+      active = false;
+      try {
+        if (pid != null) edge.releasePointerCapture(pid);
+      } catch (_) {}
+      pid = null;
+      persist();
+      scheduleMeasure(30);
+    }
+    edge.addEventListener("pointerup", endResize);
+    edge.addEventListener("pointercancel", endResize);
+
+    // belt and suspenders: track on window too if capture is unavailable
+    window.addEventListener("mousemove", (e) => {
+      if (!active) return;
+      applyWidth(e.clientX);
+    });
+    window.addEventListener("mouseup", endResize);
+  }
+
+  // ----- drop file -----
+  function bindDrop() {
+    window.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    window.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const dt = e.dataTransfer;
+      if (!dt) return;
+      let path = "";
+      const file = dt.files && dt.files[0];
+      if (file) {
+        path = file.path || file.name || "";
+      }
+      if (!path && dt.getData) {
+        const uri = dt.getData("text/uri-list") || dt.getData("text/plain") || "";
+        if (uri.startsWith("file:///")) {
+          path = decodeURIComponent(uri.replace(/^file:\/\/\/?/, "/").replace(/\//g, "\\"));
+          // Windows: file:///D:/... → D:\...
+          if (/^\\[A-Za-z]:/.test(path)) path = path.slice(1);
+          path = path.replace(/^\/(?=[A-Za-z]:)/, "");
+          if (path.startsWith("/") && /^[A-Za-z]:/.test(path.slice(1))) {
+            path = path.slice(1);
+          }
+          try {
+            if (uri.startsWith("file:///")) {
+              path = decodeURIComponent(new URL(uri).pathname).replace(/^\//, "");
+            }
+          } catch (err) {}
+        }
+      }
+      if (!path) {
+        toast("无法读取拖入的文件");
+        return;
+      }
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.load_file) {
+        const res = await window.pywebview.api.load_file(path);
+        if (res && res.ok) renderText(res.text, res.name);
+        else if (res && res.error) toast(res.error);
+      }
+    });
+  }
+
+  // ----- keyboard -----
+  function bindKeys() {
+    window.addEventListener("keydown", (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const key = e.key;
+
+      if (key === "Escape") {
+        if (state.settingsOpen) {
+          e.preventDefault();
+          openSettings(false);
+        }
+        return;
+      }
+
+      if (ctrl && (key === "o" || key === "O")) {
+        e.preventDefault();
+        openFileDialog();
+        return;
+      }
+      if (ctrl && key === ",") {
+        e.preventDefault();
+        openSettings(true);
+        return;
+      }
+      if (ctrl && (key === "c" || key === "C")) {
+        const sel = window.getSelection();
+        if (sel && String(sel).length > 0) {
+          // let system copy the selection
+          return;
+        }
+        e.preventDefault();
+        copyAll();
+        return;
+      }
+      if (ctrl && (key === "=" || key === "+")) {
+        e.preventDefault();
+        setFontShortcut(state.fontSize + 1);
+        return;
+      }
+      if (ctrl && key === "-") {
+        e.preventDefault();
+        setFontShortcut(state.fontSize - 1);
+        return;
+      }
+      if (ctrl && key === "0") {
+        e.preventDefault();
+        setFontShortcut(18);
+        return;
+      }
+      if (key === "F11") {
+        e.preventDefault();
+        $("btn-max").click();
+        return;
+      }
+    });
+  }
+
+  function setFontShortcut(n) {
+    n = Math.max(12, Math.min(36, Math.round(n)));
+    state.fontSize = n;
+    $("fs-range").value = String(n);
+    $("fs-val").textContent = String(n);
+    applyTypography();
+    scheduleMeasure(160);
+    persist();
+    toast("字号 " + n);
+  }
+
+  // ----- init -----
+  // ----- init -----
+  window.__qingduPush = function (name, text, title) {
+    try {
+      renderText(text || "", name || "", { force: true });
+    } catch (e) {}
+  };
+
+  async function init() {
+    bindChrome();
+    bindDrag();
+    bindResize();
+    bindDrop();
+    bindKeys();
+    bindSettings();
+    applyFonts();
+    applyTheme();
+    applyTypography();
+    syncSettingsUI();
+
+    // wait for pywebview bridge
+    await waitForBridge();
+
+    try {
+      const cfg = await window.pywebview.api.get_config();
+      if (cfg) {
+        state.fontSize = cfg.fontSize || 18;
+        state.prefWidth = cfg.prefWidth || 520;
+        state.zhFont = cfg.zhFont || "自动";
+        state.enFont = cfg.enFont || "自动";
+        state.bgMode = cfg.bgMode || "paper";
+        state.indentFirstLine = cfg.indentFirstLine !== false;
+      }
+    } catch (e) {}
+
+    applyFonts();
+    applyTheme();
+    applyTypography();
+    syncSettingsUI();
+
+    // brief grace period so the Python push can land first
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Pull-side fallback (won't overwrite non-empty push)
+    if (!state.text) {
+      try {
+        const data = await window.pywebview.api.get_initial_data();
+        if (data && data.ok) {
+          renderText(data.text || "", data.name || "", { force: true });
+        }
+      } catch (e) {}
+    }
+
+    try {
+      const st = await window.pywebview.api.is_maximized();
+      state.maximized = !!st;
+      updateMaxIcon();
+    } catch (e) {}
+
+    scheduleMeasure(0);
+    setTimeout(() => doMeasure(), 80);
+  }
+
+  function waitForBridge(timeout = 5000) {
+    return new Promise((resolve) => {
+      const t0 = Date.now();
+      (function tick() {
+        const api = window.pywebview && window.pywebview.api;
+        if (api && typeof api.get_initial_data === "function" && typeof api.resize_window === "function") {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - t0 > timeout) {
+          resolve(false);
+          return;
+        }
+        setTimeout(tick, 30);
+      })();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  // expose tiny debug helper
+  window.__qingdu = { state, doMeasure, renderText };
+})();
+</script>
+</body>
+</html>
