@@ -2,6 +2,10 @@
 
 一个干净、无干扰的 Windows 桌面 TXT 阅读器，Python + pywebview 构建，界面为单文件 HTML。
 
+## 界面预览
+
+![轻读界面预览](assets/preview.png)
+
 ## 功能特性
 
 - **纯净阅读**：无边框圆角窗口、可拖动标题栏、纸色/深色两套主题
